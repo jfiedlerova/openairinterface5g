@@ -20,12 +20,6 @@
  *      contact@openairinterface.org
  */
 
-// Tags to shorten pipeline duration
-def doBuild = true
-def do4Gtest = false
-def do5Gtest = false
-def do5GUeTest = false
-
 //
 def IS_PR
 def PR_ID
