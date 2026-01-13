@@ -20,29 +20,21 @@
  *      contact@openairinterface.org
  */
 
-//
-def IS_PR
-def PR_ID
-def SRC_BRANCH
-def TARGET_BRANCH
-def COMMIT_SHA
-def AUTHOR_EMAIL
-
-// list of failing stages
-def failingStages = ""
-
-OAI_Registry = "gracehopper3-oai.sboai.cs.eurecom.fr"
+// github context
+def gh
 
 def initGithubContext() {
-    IS_PR         = (env.CHANGE_ID != null)
-    PR_ID         = env.CHANGE_ID ?: ''
-    SRC_BRANCH    = env.CHANGE_BRANCH ?: env.GIT_BRANCH
-    TARGET_BRANCH = env.CHANGE_TARGET ?: ''
-    COMMIT_SHA    = env.GIT_COMMIT
-    AUTHOR_EMAIL  = sh(
+  return [
+    IS_PR         : (env.CHANGE_ID != null)
+    PR_ID         : env.CHANGE_ID ?: ''
+    SRC_BRANCH    : env.CHANGE_BRANCH ?: env.GIT_BRANCH
+    TARGET_BRANCH : env.CHANGE_TARGET ?: ''
+    COMMIT_SHA    : env.GIT_COMMIT
+    AUTHOR_EMAIL  : sh(
         returnStdout: true,
         script: "git log -1 --pretty=format:%ae ${COMMIT_SHA}"
     ).trim()
+  ]
 }
 
 pipeline {
@@ -56,27 +48,27 @@ pipeline {
     stage ("Init") {
       steps {
         script {
-          initGithubContext()
+          gh = initGithubContext()
           echo "CI executor node    :   ${params.nodeExecutor}"
-          echo "PR number           :   ${PR_ID}"
-          echo "Source Branch       :   ${SRC_BRANCH}"
-          echo "Target Branch       :   ${TARGET_BRANCH}"
-          echo "Commit ID           :   ${COMMIT_SHA}"
+          echo "PR number           :   ${gh.PR_ID}"
+          echo "Source Branch       :   ${gh.SRC_BRANCH}"
+          echo "Target Branch       :   ${gh.TARGET_BRANCH}"
+          echo "Commit ID           :   ${gh.COMMIT_SHA}"
         }
       }
     }
     stage ("Check conflicts") {
       steps {
         script {
-          if (IS_PR) {
+          if (gh.IS_PR) {
             try {
               checkout([
                 $class: 'GitSCM',
-                branches: [[name: "refs/pull/${PR_ID}/merge"]],
+                branches: [[name: "refs/pull/${gh.PR_ID}/merge"]],
                 userRemoteConfigs: [[url: env.GIT_URL]]
               ])
             } catch (err) {
-              error("Merge conflict detected: cannot merge PR #${PR_ID} into ${TARGET_BRANCH}")
+              error("Merge conflict detected: cannot merge PR #${gh.PR_ID} into ${gh.TARGET_BRANCH}")
             }
           } else {
             checkout scm
