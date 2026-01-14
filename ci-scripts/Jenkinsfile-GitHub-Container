@@ -51,16 +51,20 @@ pipeline {
       steps {
         script {
           gh = initGithubContext()
-          echo "Action              :   ${env.action}"
-          echo "Refs                :   ${env.ref}"
           echo "CI executor node    :   ${params.nodeExecutor}"
-          echo "PR number           :   ${gh.PR_NUMBER}"
-          echo "Commit ID           :   ${gh.COMMIT_SHA}"
-          echo "Source Branch       :   ${gh.SRC_BRANCH}"
-          echo "Source Repository   :   ${gh.SRC_REPO}"
-          echo "Target Branch       :   ${gh.TARGET_BRANCH}"
-          echo "Target Repo         :   ${gh.TARGET_REPO}"
-          echo "Label               :   ${env.pr_label}"
+          echo "Author email        :   ${gh.AUTHOR_EMAIL}"
+          if (gh.IS_PR) {
+            echo "Action              :   ${env.action}"
+            echo "PR number           :   ${gh.PR_NUMBER}"
+            echo "Commit ID           :   ${gh.COMMIT_SHA}"
+            echo "Source Branch       :   ${gh.SRC_BRANCH}"
+            echo "Source Repository   :   ${gh.SRC_REPO}"
+            echo "Target Branch       :   ${gh.TARGET_BRANCH}"
+            echo "Target Repo         :   ${gh.TARGET_REPO}"
+            echo "Label               :   ${env.pr_label}"
+          } else {
+            echo "Action              :   Push"
+            echo "Commit ID           :   ${gh.COMMIT_SHA}"
         }
       }
     }
@@ -75,7 +79,7 @@ pipeline {
                 userRemoteConfigs: [[url: env.GIT_URL]]
               ])
             } catch (err) {
-              error("Merge conflict detected: cannot merge PR #${gh.PR_ID} into ${gh.TARGET_BRANCH}")
+              error("Merge conflict detected: cannot merge PR #${gh.PR_NUMBER} into ${gh.TARGET_BRANCH}")
             }
           } else {
             checkout scm
