@@ -31,7 +31,7 @@ def initGithubContext() {
     SRC_REPO      : env.pr_source_repo,
     TARGET_BRANCH : env.pr_target_branch ?: '',
     TARGET_REPO   : env.pr_target_repo ?: '',
-    COMMIT_SHA    : env.pr_commit_id,
+    COMMIT_SHA    : env.pr_commit_id ?: env.GIT_COMMIT,
     AUTHOR_EMAIL  : sh(
         returnStdout: true,
         script: "git log -1 --pretty=format:%ae ${env.pr_commit_id}"
