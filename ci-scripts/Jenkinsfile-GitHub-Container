@@ -23,11 +23,18 @@
 // GitHub context
 def gh
 
+// Tags to shorten pipeline duration
+def doBuild = true
+def do4Gtest = false
+def do5Gtest = false
+def do5GUeTest = false
+
 def initGithubContext() {
   return [
     IS_PR         : (env.pr_number != null),
     ACTION        : env.action ?: 'Push',
     PR_NUMBER     : env.pr_number ?: '',
+    LABELS        : env.pr_label ?: [],
     SRC_BRANCH    : env.pr_source_branch ?: env.GIT_BRANCH,
     SRC_REPO      : env.pr_source_repo,
     TARGET_BRANCH : env.pr_target_branch ?: '',
@@ -58,11 +65,64 @@ pipeline {
             echo "Source Repository   :   ${gh.SRC_REPO}"
             echo "Target Branch       :   ${gh.TARGET_BRANCH}"
             echo "Target Repo         :   ${gh.TARGET_REPO}"
-            echo "Label               :   ${env.pr_label}"
+            echo "Label               :   ${gh.LABELS}"
           } else {
             echo "Commit ID           :   ${gh.COMMIT_SHA}"
           }
           echo "Author email        :   ${gh.AUTHOR_EMAIL}"
+        }
+      }
+    }
+    stage ("Verify Parameters") {
+      steps {
+        echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
+        script {
+          JOB_TIMESTAMP = sh returnStdout: true, script: 'date --utc --rfc-3339=seconds | sed -e "s#+00:00##"'
+          JOB_TIMESTAMP = JOB_TIMESTAMP.trim()
+          def allParametersPresent = true
+
+	  if (gh.IS_PR) {
+            if (gh.LABELS.isEmpty()) {
+	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
+              message += " - ~documentation (don't perform any stages)\n"
+              message += " - ~BUILD-ONLY (execute only build stages)\n"
+              message += " - ~4G-LTE (perform 4G tests)\n"
+              message += " - ~5G-NR (perform 5G tests)\n"
+              message += " - ~CI (perform both 4G and 5G tests)\n"
+              message += " - ~nrUE (perform only 5G-UE related tests including physims excluding LDPC tests)\n\n"
+              message += "Not performing CI due to lack of labels"
+              addGitLabMRComment comment: message
+              error('Not performing CI due to lack of labels')
+            }
+            if (gh.LABELS.contains('CI')) {
+              do4Gtest = true
+              do5Gtest = true
+              do5GUeTest = true
+            }
+            if (gh.LABELS.contains('4G-LTE')) {
+              do4Gtest = true
+            }
+            if (gh.LABELS.contains('5G-NR')) {
+              do5Gtest = true
+            }
+            if (gh.LABELS.contains('nrUE')) {
+              do5GUeTest = true
+            }
+            if (gh.LABELS.contains('documentation')) {
+              doBuild = false
+            }
+          } else {
+            // PUSH event
+            do4Gtest = true
+            do5Gtest = true
+          }
+          echo """
+            CI decision summary:
+            doBuild     = ${doBuild}
+            do4Gtest    = ${do4Gtest}
+            do5Gtest    = ${do5Gtest}
+            do5GUeTest  = ${do5GUeTest}
+          """
         }
       }
     }
