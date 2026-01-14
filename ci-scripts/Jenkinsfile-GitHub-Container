@@ -60,7 +60,7 @@ pipeline {
           echo "Source Repository   :   ${gh.SRC_REPO}"
           echo "Target Branch       :   ${gh.TARGET_BRANCH}"
           echo "Target Repo         :   ${gh.TARGET_REPO}"
-          echo "Label               :   ${env.pr_label}
+          echo "Label               :   ${env.pr_label}"
         }
       }
     }
