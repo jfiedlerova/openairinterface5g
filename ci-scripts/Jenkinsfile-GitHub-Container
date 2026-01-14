@@ -25,14 +25,16 @@ def gh
 
 def initGithubContext() {
   return [
-    IS_PR         : (env.CHANGE_ID != null),
-    PR_ID         : env.CHANGE_ID ?: '',
-    SRC_BRANCH    : env.CHANGE_BRANCH ?: env.GIT_BRANCH,
-    TARGET_BRANCH : env.CHANGE_TARGET ?: '',
-    COMMIT_SHA    : env.GIT_COMMIT,
+    IS_PR         : (env.pr_number != null),
+    PR_NUMBER     : env.pr_number ?: '',
+    SRC_BRANCH    : env.pr_source_branch ?: env.GIT_BRANCH,
+    SRC_REPO      : env.pr_source_repo,
+    TARGET_BRANCH : env.pr_target_branch ?: '',
+    TARGET_REPO   : env.pr_target_repo ?: '',
+    COMMIT_SHA    : env.pr_commit_id,
     AUTHOR_EMAIL  : sh(
         returnStdout: true,
-        script: "git log -1 --pretty=format:%ae ${env.GIT_COMMIT}"
+        script: "git log -1 --pretty=format:%ae ${env.pr_commit_id,}"
     ).trim()
   ]
 }
@@ -52,10 +54,13 @@ pipeline {
           echo "Action              :   ${env.action}"
           echo "Refs                :   ${env.ref}"
           echo "CI executor node    :   ${params.nodeExecutor}"
-          echo "PR number           :   ${gh.PR_ID}"
-          echo "Source Branch       :   ${gh.SRC_BRANCH}"
-          echo "Target Branch       :   ${gh.TARGET_BRANCH}"
+          echo "PR number           :   ${gh.PR_NUMBER}"
           echo "Commit ID           :   ${gh.COMMIT_SHA}"
+          echo "Source Branch       :   ${gh.SRC_BRANCH}"
+          echo "Source Repository   :   ${gh.SRC_REPO}"
+          echo "Target Branch       :   ${gh.TARGET_BRANCH}"
+          echo "Target Repo         :   ${gh.TARGET_REPO}"
+          echo "Label               :   ${env.pr_label}
         }
       }
     }
@@ -66,7 +71,7 @@ pipeline {
             try {
               checkout([
                 $class: 'GitSCM',
-                branches: [[name: "refs/pull/${gh.PR_ID}/merge"]],
+                branches: [[name: "refs/pull/${env.pr_id}/merge"]],
                 userRemoteConfigs: [[url: env.GIT_URL]]
               ])
             } catch (err) {
