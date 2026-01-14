@@ -48,6 +48,7 @@ pipeline {
     stage ("Get Parameters") {
       steps {
         scripts {
+          gh = initGithubContext()
           echo '\u2705 \u001B[32mGet Parameters\u001B[0m'
           echo "Action              :   ${gh.ACTION}"
           if (gh.IS_PR) {
