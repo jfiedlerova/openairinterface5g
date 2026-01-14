@@ -25,11 +25,11 @@ def gh
 
 def initGithubContext() {
   return [
-    IS_PR         : (env.CHANGE_ID != null)
-    PR_ID         : env.CHANGE_ID ?: ''
-    SRC_BRANCH    : env.CHANGE_BRANCH ?: env.GIT_BRANCH
-    TARGET_BRANCH : env.CHANGE_TARGET ?: ''
-    COMMIT_SHA    : env.GIT_COMMIT
+    IS_PR         : (env.CHANGE_ID != null),
+    PR_ID         : env.CHANGE_ID ?: '',
+    SRC_BRANCH    : env.CHANGE_BRANCH ?: env.GIT_BRANCH,
+    TARGET_BRANCH : env.CHANGE_TARGET ?: '',
+    COMMIT_SHA    : env.GIT_COMMIT,
     AUTHOR_EMAIL  : sh(
         returnStdout: true,
         script: "git log -1 --pretty=format:%ae ${COMMIT_SHA}"
@@ -49,7 +49,7 @@ pipeline {
       steps {
         script {
           gh = initGithubContext()
-          echo "Action              :   ${action}
+          echo "Action              :   ${env.action}"
           echo "CI executor node    :   ${params.nodeExecutor}"
           echo "PR number           :   ${gh.PR_ID}"
           echo "Source Branch       :   ${gh.SRC_BRANCH}"
