@@ -32,7 +32,7 @@ def initGithubContext() {
     COMMIT_SHA    : env.GIT_COMMIT,
     AUTHOR_EMAIL  : sh(
         returnStdout: true,
-        script: "git log -1 --pretty=format:%ae ${COMMIT_SHA}"
+        script: "git log -1 --pretty=format:%ae ${env.GIT_COMMIT}"
     ).trim()
   ]
 }
