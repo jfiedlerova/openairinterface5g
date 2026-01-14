@@ -50,6 +50,7 @@ pipeline {
         script {
           gh = initGithubContext()
           echo "Action              :   ${env.action}"
+          echo "Refs                :   ${env.ref}"
           echo "CI executor node    :   ${params.nodeExecutor}"
           echo "PR number           :   ${gh.PR_ID}"
           echo "Source Branch       :   ${gh.SRC_BRANCH}"
