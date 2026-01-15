@@ -91,7 +91,6 @@ pipeline {
               message += " - ~CI (perform both 4G and 5G tests)\n"
               message += " - ~nrUE (perform only 5G-UE related tests including physims excluding LDPC tests)\n\n"
               message += "Not performing CI due to lack of labels"
-              addGitLabMRComment comment: message
               error('Not performing CI due to lack of labels')
             }
             if (gh.LABELS.contains('CI')) {
