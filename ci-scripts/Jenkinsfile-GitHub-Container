@@ -131,5 +131,30 @@ pipeline {
         }
       }
     }
+    stage ("Verify Guidelines") {
+      steps {
+        echo "Git URL          is ${GIT_URL}"
+        echo "GitHub Action    is ${gh.ACTION}"
+        echo "GitHub Usermail  is ${gh.AUTHOR_EMAIL}"
+        script {
+          if (gh.IS_PR) {
+            sh """
+              ./ci-scripts/doGitHubMerge.sh --src-repo ${gh.SRC_REPO} \
+                                            --src-branch ${gh.SRC_BRANCH} \
+                                            --target-repo ${gh.TARGET_REPO} \
+                                            --target-branch ${gh.TARGET_BRANCH}
+            """
+          }
+        }
+      }
+      post {
+        failure {
+          script {
+            def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Merge Conflicts -- Cannot perform CI"
+            echo message
+          }
+        }
+      }
+    }
   }
 }
