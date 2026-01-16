@@ -124,7 +124,7 @@ git fetch src $SRC_BRANCH
 # Merge source branch tip
 echo "Merging $SRC_REPO/$SRC_BRANCH into $TARGET_REPO/$TARGET_BRANCH"
 
-if ! git merge --ff "$SRC_BRANCH" -m "Temporary merge from $SRC_REPO/$SRC_BRANCH for CI"; then
+if ! git merge --ff "src/$SRC_BRANCH" -m "Temporary merge from $SRC_REPO/$SRC_BRANCH for CI"; then
     echo "Merge conflicts detected. Aborting."
     exit 1
 fi
