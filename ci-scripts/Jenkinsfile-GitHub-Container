@@ -195,7 +195,7 @@ def triggerSlaveJob (jobName, gitlabStatusName) {
       string(name: 'sourceRepository', value: String.valueOf(gh.SRC_REPO)),
       string(name: 'sourceBranch', value: String.valueOf(gh.SRC_BRANCH)),
       string(name: 'commitID', value: String.valueOf(gh.COMMIT_SHA)),
-      string(name: 'PR', value: String.valueOf(PR_NUMBER)),
+      string(name: 'PR', value: String.valueOf(gh.PR_NUMBER)),
       booleanParam(name: 'isPR', value: gh.is_PR),
       string(name: 'targetRepository', value: String.valueOf(gh.TARGET_REPO)),
       string(name: 'targetBranch', value: String.valueOf(gh.TARGET_BRANCH))
