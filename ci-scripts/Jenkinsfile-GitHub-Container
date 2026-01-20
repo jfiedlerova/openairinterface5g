@@ -22,6 +22,7 @@
 
 // GitHub context
 def gh
+def JOB_TIMESTAMP
 
 // Tags to shorten pipeline duration
 def doBuild = true
@@ -33,7 +34,7 @@ def initGithubContext() {
   return [
     IS_PR         : (env.pr_number != null),
     ACTION        : env.action ?: 'Push',
-    PR_NUMBER     : env.pr_number ?: '',
+    PR_NUMBER     : env.pr_number ?: 'develop',
     LABELS        : env.pr_label ?: [],
     SRC_BRANCH    : env.pr_source_branch ?: env.GIT_BRANCH,
     SRC_REPO      : env.pr_source_repo,
@@ -73,7 +74,7 @@ pipeline {
         }
       }
     }
-    stage ("Verify Parameters") {
+    stage ("Verify Labels") {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
@@ -129,6 +130,8 @@ pipeline {
       steps {
         echo "Git URL          is ${GIT_URL}"
         echo "GitHub Action    is ${gh.ACTION}"
+        echo "Job Name         is ${JOB_NAME}"
+        echo "Build Id         is ${BUILD_ID}"
         echo "GitHub Usermail  is ${gh.AUTHOR_EMAIL}"
         script {
           if (gh.IS_PR) {
@@ -150,5 +153,57 @@ pipeline {
         }
       }
     }
+    stage ("Image Building Processes") {
+      when { expression {doBuild} {
+        stage ("GitHub-Ubuntu-Jetson-Image-Builder") {
+          steps {
+            script {
+              triggerSlaveJob ('RAN-GitHub-Ubuntu-Jetson-Image-Builder', 'GitHub-Ubuntu-Jetson-Image-Builder')
+            }
+          }
+          post {
+            always {
+              script {
+                // Using a unique variable name for each test stage to avoid overwriting on a global variable
+                // due to parallel-time concurrency
+                gitHubUbuntuJetsonBuildStatus = finalizeSlaveJob('GitHub-Ubuntu-Jetson-Image-Builder')
+              }
+            }
+            failure {
+              script {
+                currentBuild.result = 'FAILURE'
+                failingStages += gitHubUbuntuJetsonBuildStatus
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// ----  Slave Job functions
+
+def triggerSlaveJob (jobName, gitlabStatusName) {
+  // Workaround for the "cancelled" GitLab pipeline notification
+  // The slave job is triggered with the propagate false so the following commands are executed
+  // Its status is now PASS/SUCCESS from a stage pipeline point of view
+  // localStatus variable MUST be analyzed to properly assess the status
+  localStatus = build job: jobName,
+    parameters: [
+      string(name: 'sourceRepository', value: String.valueOf(gh.SRC_REPO)),
+      string(name: 'sourceBranch', value: String.valueOf(gh.SRC_BRANCH)),
+      string(name: 'commitID', value: String.valueOf(gh.COMMIT_SHA)),
+      string(name: 'PR', value: String.valueOf(PR_NUMBER)),
+      booleanParam(name: 'isPR', value: gh.is_PR),
+      string(name: 'targetRepository', value: String.valueOf(gh.TARGET_REPO)),
+      string(name: 'targetBranch', value: String.valueOf(gh.TARGET_BRANCH))
+    ], propagate: false
+  localResult = localStatus.getResult()
+  echo "${jobName} Slave Job status is ${localResult}"
+  if (localStatus.resultIsBetterOrEqualTo('SUCCESS')) {
+    echo "${jobName} Slave Job is OK"
+  } else {
+    error "${jobName} Slave Job is KO"
   }
 }
