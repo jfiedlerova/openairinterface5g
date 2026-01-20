@@ -22,8 +22,8 @@
 
 // GitHub context
 def gh
-def JOB_TIMESTAMP
 def failingStages = ""
+def gitHubUbuntuJetsonBuildStatus = ""
 
 // Tags to shorten pipeline duration
 def doBuild = true
@@ -72,6 +72,7 @@ pipeline {
             echo "Commit ID           :   ${gh.COMMIT_SHA}"
           }
           echo "Author email        :   ${gh.AUTHOR_EMAIL}"
+          env.JOB_TIMESTAMP = sh(returnStdout: true, script: 'date --utc --rfc-3339=seconds | sed -e "s#+00:00##"').trim()
         }
       }
     }
@@ -79,10 +80,6 @@ pipeline {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
-          JOB_TIMESTAMP = sh returnStdout: true, script: 'date --utc --rfc-3339=seconds | sed -e "s#+00:00##"'
-          JOB_TIMESTAMP = JOB_TIMESTAMP.trim()
-          def allParametersPresent = true
-
 	  if (gh.IS_PR) {
             if (gh.LABELS.isEmpty()) {
 	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
@@ -225,7 +222,7 @@ def finalizeSlaveJob(jobName) {
         filter: 'test_results*.html',
         selector: lastCompleted())
       if (fileExists(fileName)) {
-        sh "sed -i -e 's#TEMPLATE_BUILD_TIME#${JOB_TIMESTAMP}#' ${fileName}"
+        sh "sed -i -e 's#TEMPLATE_BUILD_TIME#${env.JOB_TIMESTAMP}#' ${fileName}"
       } else {
         sh "echo \"could not copy results from ${jobName}, please check pipeline ${BUILD_URL}\" > ${fileName}"
       }
