@@ -167,7 +167,7 @@ pipeline {
               script {
                 // Using a unique variable name for each test stage to avoid overwriting on a global variable
                 // due to parallel-time concurrency
-                gitHubUbuntuJetsonBuildStatus = finalizeSlaveJob('GitHub-Ubuntu-Jetson-Image-Builder')
+                gitHubUbuntuJetsonBuildStatus = finalizeSlaveJob('RAN-GitHub-Ubuntu-Jetson-Image-Builder')
               }
             }
             failure {
