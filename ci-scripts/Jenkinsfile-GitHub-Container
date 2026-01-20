@@ -23,6 +23,7 @@
 // GitHub context
 def gh
 def JOB_TIMESTAMP
+def failingStages = ""
 
 // Tags to shorten pipeline duration
 def doBuild = true
