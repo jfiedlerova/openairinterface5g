@@ -208,3 +208,32 @@ def triggerSlaveJob (jobName, gitlabStatusName) {
     error "${jobName} Slave Job is KO"
   }
 }
+
+def finalizeSlaveJob(jobName) {
+  lock ('Parent-Lock') {
+    // In case of any non-success, we are retrieving the HTML report of the last completed
+    // slave job. The only drop-back is that we may retrieve the HTML report of a previous build
+    if (jobName == 'OAI-CN5G-COTS-UE-Test') {
+      fileName = "test_results_oai_cn5g_cots_ue.html"
+    } else {
+      fileName = "test_results-${jobName}.html"
+    }
+    artifactUrl = BUILD_URL
+    if (!fileExists(fileName)) {
+      copyArtifacts(projectName: jobName,
+        filter: 'test_results*.html',
+        selector: lastCompleted())
+      if (fileExists(fileName)) {
+        sh "sed -i -e 's#TEMPLATE_BUILD_TIME#${JOB_TIMESTAMP}#' ${fileName}"
+      } else {
+        sh "echo \"could not copy results from ${jobName}, please check pipeline ${BUILD_URL}\" > ${fileName}"
+      }
+      archiveArtifacts artifacts: fileName
+      // BUILD_URL is like  http://server:port/jenkins/job/foo/15/
+      // no need to add a prefixed '/'
+      artifactUrl += 'artifact/' + fileName
+    }
+    artifactUrl = "\n * [${jobName}](${artifactUrl})"
+    return artifactUrl
+  }
+}
