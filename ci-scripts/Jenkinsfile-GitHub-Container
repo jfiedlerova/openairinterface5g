@@ -188,6 +188,47 @@ pipeline {
       }
     }
   }
+  post {
+  always {
+    script {
+      if (!gh?.IS_PR) {
+        // Not a PR, skip
+        return
+      }
+
+      // Determine final result
+      def finalStatus
+      if (currentBuild.currentResult == 'SUCCESS') {
+        finalStatus = "SUCCESS"
+      } else if (currentBuild.currentResult == 'FAILURE') {
+        finalStatus = "FAILURE"
+      } else if (currentBuild.currentResult == 'ABORTED') {
+        finalStatus = "ABORTED"
+      } else {
+        finalStatus = currentBuild.currentResult
+      }
+
+      // Build message to post
+      def message = """
+**Jenkins CI result for PR #${gh.PR_NUMBER}**
+- Job: ${JOB_NAME}
+- Build ID: ${BUILD_ID}
+- Status: ${finalStatus}
+- Failing stages: ${failingStages ?: 'None'}
+- [Jenkins Build Link](${BUILD_URL})
+"""
+
+      echo message
+
+      // Post comment to PR using GitHub token
+      githubPrComment(
+        credentialsId: 'github-token',
+        comment: message
+      )
+    }
+  }
+}
+
 }
 
 // ----  Slave Job functions
