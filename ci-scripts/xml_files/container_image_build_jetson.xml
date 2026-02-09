@@ -34,19 +34,19 @@
         <testCase id="800813">
                 <class>Create_Workspace</class>
                 <desc>Create new Workspace for server 0</desc>
-                <node>jetson3-oai</node>
+                <node>jetson2-oai</node>
         </testCase>
         <testCase id="000001">
                 <class>Build_Image</class>
                 <desc>Build all Images</desc>
-                <node>jetson3-oai</node>
+                <node>jetson2-oai</node>
                 <kind>native_armv8</kind>
         </testCase>
 
         <testCase id="000010">
                 <class>Push_Local_Registry</class>
                 <desc>Push Images to Local Registry</desc>
-                <node>jetson3-oai</node>
+                <node>jetson2-oai</node>
                 <tag_prefix>armv8_</tag_prefix>
         </testCase>
 
