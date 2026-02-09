@@ -1,0 +1,237 @@
+#!/bin/groovy
+/*
+ * Licensed to the OpenAirInterface (OAI) Software Alliance under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The OpenAirInterface Software Alliance licenses this file to You under
+ * the OAI Public License, Version 1.1  (the "License"); you may not use this file
+ * except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.openairinterface.org/?page_id=698
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *-------------------------------------------------------------------------------
+ * For more information about the OpenAirInterface (OAI) Software Alliance:
+ *      contact@openairinterface.org
+ */
+
+// GitHub context
+def gh
+def failingStages = ""
+def gitHubUbuntuJetsonBuildStatus = ""
+
+// Tags to shorten pipeline duration
+def doBuild = true
+def do4Gtest = false
+def do5Gtest = false
+def do5GUeTest = false
+
+def initGithubContext() {
+  return [
+    IS_PR         : (env.pr_number != null),
+    ACTION        : env.action ?: 'Push',
+    PR_NUMBER     : env.pr_number ?: 'test_github',
+    LABELS        : env.pr_label ?: [],
+    SRC_BRANCH    : env.pr_source_branch ?: env.GIT_BRANCH,
+    SRC_REPO      : env.pr_source_repo ?: env.GIT_URL,
+    TARGET_BRANCH : env.pr_target_branch ?: env.GIT_BRANCH,
+    TARGET_REPO   : env.pr_target_repo ?: env.GIT_URL,
+    COMMIT_SHA    : env.pr_commit_sha ?: env.GIT_COMMIT,
+    AUTHOR_EMAIL  : sh(returnStdout: true, script: "git log -1 --pretty=format:%ae ${env.GIT_COMMIT}").trim()
+  ]
+}
+
+pipeline {
+  agent { label params.nodeExecutor }
+  options {
+    timestamps()
+    ansiColor('xterm')
+  }
+
+  stages {
+    stage ("Get Parameters") {
+      steps {
+        script {
+          gh = initGithubContext()
+          echo '\u2705 \u001B[32mGet Parameters\u001B[0m'
+          echo "Action              :   ${gh.ACTION}"
+          if (gh.IS_PR) {
+            echo "PR number           :   ${gh.PR_NUMBER}"
+            echo "Commit ID           :   ${gh.COMMIT_SHA}"
+            echo "Source Branch       :   ${gh.SRC_BRANCH}"
+            echo "Source Repository   :   ${gh.SRC_REPO}"
+            echo "Target Branch       :   ${gh.TARGET_BRANCH}"
+            echo "Target Repo         :   ${gh.TARGET_REPO}"
+            echo "Label               :   ${gh.LABELS}"
+          } else {
+            echo "Commit ID           :   ${gh.COMMIT_SHA}"
+          }
+          echo "Author email        :   ${gh.AUTHOR_EMAIL}"
+          env.JOB_TIMESTAMP = sh(returnStdout: true, script: 'date --utc --rfc-3339=seconds | sed -e "s#+00:00##"').trim()
+        }
+      }
+    }
+    stage ("Verify Labels") {
+      steps {
+        echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
+        script {
+          if (gh.IS_PR) {
+            if (gh.LABELS == null || gh.LABELS.toString() == "[]") {
+              def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
+              message += " - ~documentation (don't perform any stages)\n"
+              message += " - ~BUILD-ONLY (execute only build stages)\n"
+              message += " - ~4G-LTE (perform 4G tests)\n"
+              message += " - ~5G-NR (perform 5G tests)\n"
+              message += " - ~CI (perform both 4G and 5G tests)\n"
+              message += " - ~nrUE (perform only 5G-UE related tests including physims excluding LDPC tests)\n\n"
+              message += "Not performing CI due to lack of labels"
+              error('Not performing CI due to lack of labels')
+            }
+            if (gh.LABELS.contains('CI')) {
+              do4Gtest = true
+              do5Gtest = true
+              do5GUeTest = true
+            }
+            if (gh.LABELS.contains('4G-LTE')) {
+              do4Gtest = true
+            }
+            if (gh.LABELS.contains('5G-NR')) {
+              do5Gtest = true
+            }
+            if (gh.LABELS.contains('nrUE')) {
+              do5GUeTest = true
+            }
+            if (gh.LABELS.contains('documentation')) {
+              doBuild = false
+            }
+          } else {
+            // PUSH event
+            do4Gtest = true
+            do5Gtest = true
+          }
+          echo """
+            CI decision summary:
+            doBuild     = ${doBuild}
+            do4Gtest    = ${do4Gtest}
+            do5Gtest    = ${do5Gtest}
+            do5GUeTest  = ${do5GUeTest}
+          """
+        }
+      }
+    }
+    stage ("Verify Guidelines") {
+      steps {
+        echo "Git URL          is ${GIT_URL}"
+        echo "GitHub Action    is ${gh.ACTION}"
+        echo "Job Name         is ${JOB_NAME}"
+        echo "Build Id         is ${BUILD_ID}"
+        echo "GitHub Usermail  is ${gh.AUTHOR_EMAIL}"
+        script {
+          if (gh.IS_PR) {
+            sh """
+              ./ci-scripts/doGitHubMerge.sh --src-repo ${gh.SRC_REPO} \
+                                            --src-branch ${gh.SRC_BRANCH} \
+                                            --target-repo ${gh.TARGET_REPO} \
+                                            --target-branch ${gh.TARGET_BRANCH}
+            """
+          }
+        }
+      }
+      post {
+        failure {
+          script {
+            def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Merge Conflicts -- Cannot perform CI"
+            echo message
+          }
+        }
+      }
+    }
+    stage ("Image Building Processes") {
+      when { expression {doBuild} }
+      parallel {
+        stage ("GitHub-Ubuntu-Jetson-Image-Builder") {
+          steps {
+            script {
+              triggerSlaveJob ('RAN-GitHub-Ubuntu-Jetson-Image-Builder', 'GitHub-Ubuntu-Jetson-Image-Builder', gh)
+            }
+          }
+          post {
+            always {
+              script {
+                // Using a unique variable name for each test stage to avoid overwriting on a global variable
+                // due to parallel-time concurrency
+                gitHubUbuntuJetsonBuildStatus = finalizeSlaveJob('RAN-GitHub-Ubuntu-Jetson-Image-Builder')
+              }
+            }
+            failure {
+              script {
+                currentBuild.result = 'FAILURE'
+                failingStages += gitHubUbuntuJetsonBuildStatus
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// ----  Slave Job functions
+
+def triggerSlaveJob (jobName, gitlabStatusName, gh) {
+  // Workaround for the "cancelled" GitLab pipeline notification
+  // The slave job is triggered with the propagate false so the following commands are executed
+  // Its status is now PASS/SUCCESS from a stage pipeline point of view
+  // localStatus variable MUST be analyzed to properly assess the status
+  localStatus = build job: jobName,
+    parameters: [
+      string(name: 'sourceRepository', value: String.valueOf(gh.SRC_REPO)),
+      string(name: 'sourceBranch', value: String.valueOf(gh.SRC_BRANCH)),
+      string(name: 'commitID', value: String.valueOf(gh.COMMIT_SHA)),
+      string(name: 'PR', value: String.valueOf(gh.PR_NUMBER)),
+      booleanParam(name: 'isPR', value: gh.IS_PR),
+      string(name: 'targetRepository', value: String.valueOf(gh.TARGET_REPO)),
+      string(name: 'targetBranch', value: String.valueOf(gh.TARGET_BRANCH))
+    ], propagate: false
+  localResult = localStatus.getResult()
+  echo "${jobName} Slave Job status is ${localResult}"
+  if (localStatus.resultIsBetterOrEqualTo('SUCCESS')) {
+    echo "${jobName} Slave Job is OK"
+  } else {
+    error "${jobName} Slave Job is KO"
+  }
+}
+
+def finalizeSlaveJob(jobName) {
+  lock ('Parent-Lock') {
+    // In case of any non-success, we are retrieving the HTML report of the last completed
+    // slave job. The only drop-back is that we may retrieve the HTML report of a previous build
+    if (jobName == 'OAI-CN5G-COTS-UE-Test') {
+      fileName = "test_results_oai_cn5g_cots_ue.html"
+    } else {
+      fileName = "test_results-${jobName}.html"
+    }
+    artifactUrl = BUILD_URL
+    if (!fileExists(fileName)) {
+      copyArtifacts(projectName: jobName,
+        filter: 'test_results*.html',
+        selector: lastCompleted())
+      if (fileExists(fileName)) {
+        sh "sed -i -e 's#TEMPLATE_BUILD_TIME#${env.JOB_TIMESTAMP}#' ${fileName}"
+      } else {
+        sh "echo \"could not copy results from ${jobName}, please check pipeline ${BUILD_URL}\" > ${fileName}"
+      }
+      archiveArtifacts artifacts: fileName
+      // BUILD_URL is like  http://server:port/jenkins/job/foo/15/
+      // no need to add a prefixed '/'
+      artifactUrl += 'artifact/' + fileName
+    }
+    artifactUrl = "\n * [${jobName}](${artifactUrl})"
+    return artifactUrl
+  }
+}
