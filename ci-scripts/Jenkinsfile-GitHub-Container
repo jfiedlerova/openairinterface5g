@@ -35,7 +35,7 @@ def initGithubContext() {
   return [
     IS_PR         : (env.pr_number != null),
     ACTION        : env.action ?: 'Push',
-    PR_NUMBER     : env.pr_number ?: 'develop',
+    PR_NUMBER     : env.pr_number ?: 'test_github',
     LABELS        : env.pr_label ?: [],
     SRC_BRANCH    : env.pr_source_branch ?: env.GIT_BRANCH,
     SRC_REPO      : env.pr_source_repo ?: env.GIT_URL,
@@ -80,9 +80,9 @@ pipeline {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
-	  if (gh.IS_PR) {
-            if (gh.LABELS.isEmpty()) {
-	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
+          if (gh.IS_PR) {
+            if (gh.LABELS == null || gh.LABELS.toString() == "[]") {
+              def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
               message += " - ~documentation (don't perform any stages)\n"
               message += " - ~BUILD-ONLY (execute only build stages)\n"
               message += " - ~4G-LTE (perform 4G tests)\n"
@@ -147,15 +147,15 @@ pipeline {
           script {
             def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Merge Conflicts -- Cannot perform CI"
             echo message
-          if (gh?.IS_PR) {
-             githubNotify(
-               credentialsId: 'github-token',
-               context: 'ci/jenkins',
-               status: 'FAILURE',
-               description: message,
-               sha: gh.COMMIT_SHA
-             )
-           }
+            if (gh?.IS_PR) {
+              githubNotify(
+                credentialsId: 'github-token',
+                context: 'ci/jenkins',
+                status: 'FAILURE',
+                description: message,
+                sha: gh.COMMIT_SHA
+              )
+            }
           }
         }
       }
@@ -244,7 +244,7 @@ def triggerSlaveJob (jobName, gitlabStatusName, gh) {
       string(name: 'sourceBranch', value: String.valueOf(gh.SRC_BRANCH)),
       string(name: 'commitID', value: String.valueOf(gh.COMMIT_SHA)),
       string(name: 'PR', value: String.valueOf(gh.PR_NUMBER)),
-      booleanParam(name: 'isPR', value: gh.is_PR),
+      booleanParam(name: 'isPR', value: gh.IS_PR),
       string(name: 'targetRepository', value: String.valueOf(gh.TARGET_REPO)),
       string(name: 'targetBranch', value: String.valueOf(gh.TARGET_BRANCH))
     ], propagate: false
