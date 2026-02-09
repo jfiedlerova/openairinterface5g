@@ -147,6 +147,15 @@ pipeline {
           script {
             def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Merge Conflicts -- Cannot perform CI"
             echo message
+          if (gh?.IS_PR) {
+             githubNotify(
+               credentialsId: 'github-token',
+               context: 'ci/jenkins',
+               status: 'FAILURE',
+               description: message,
+               sha: gh.COMMIT_SHA
+             )
+           }
           }
         }
       }
