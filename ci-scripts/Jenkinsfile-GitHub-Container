@@ -150,10 +150,12 @@ pipeline {
           if (gh?.IS_PR) {
              githubNotify(
                credentialsId: 'github-token',
+               account: 'shubhika-garg-oai',
+               repo: 'openairinterface5g',
+               sha: gh.COMMIT_SHA,
                context: 'ci/jenkins',
                status: 'FAILURE',
-               description: message,
-               sha: gh.COMMIT_SHA
+               description: message
              )
            }
           }
