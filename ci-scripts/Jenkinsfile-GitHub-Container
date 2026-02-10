@@ -80,9 +80,12 @@ pipeline {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
-          if (gh.IS_PR) {
-            if (gh.LABELS == null || gh.LABELS.toString() == "[]") {
-              def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
+          withCredentials([string(credentialsId: 'github-token', variable: 'TEMP_TOKEN')]) {
+            echo "Success: 'github-token' is visible to this pipeline."
+          }
+	  if (gh.IS_PR) {
+            if (gh.LABELS.isEmpty()) {
+	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
               message += " - ~documentation (don't perform any stages)\n"
               message += " - ~BUILD-ONLY (execute only build stages)\n"
               message += " - ~4G-LTE (perform 4G tests)\n"
@@ -147,6 +150,17 @@ pipeline {
           script {
             def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Merge Conflicts -- Cannot perform CI"
             echo message
+          if (gh?.IS_PR) {
+             githubNotify(
+               credentialsId: 'github-token',
+               account: 'shubhika-garg-oai',
+               repo: 'openairinterface5g',
+               sha: gh.COMMIT_SHA,
+               context: 'ci/jenkins',
+               status: 'FAILURE',
+               description: message
+             )
+           }
           }
         }
       }
@@ -179,6 +193,42 @@ pipeline {
       }
     }
   }
+  post {
+  always {
+    script {
+      if (!gh?.IS_PR) {
+        // Not a PR, skip
+        return
+      }
+
+      // Determine final result
+      def status = (currentBuild.currentResult == 'SUCCESS') ? 'SUCCESS' : 'FAILURE'
+
+      // Build message to post
+      def message = """
+**Jenkins CI result for PR #${gh.PR_NUMBER}**
+- Job: ${JOB_NAME}
+- Build ID: ${BUILD_ID}
+- Status: ${status}
+- Failing stages: ${failingStages ?: 'None'}
+- [Jenkins Build Link](${BUILD_URL})
+"""
+
+      echo message
+
+      githubNotify(
+        credentialsId: 'github-token',
+        account: 'shubhika-garg-oai',
+        repo: 'openairinterface5g',
+        sha: gh.COMMIT_SHA,
+        context: 'ci/jenkins',
+        status: status,
+        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}"
+    )
+    }
+  }
+}
+
 }
 
 // ----  Slave Job functions

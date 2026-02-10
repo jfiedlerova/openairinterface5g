@@ -42,6 +42,7 @@ def sourceBranch = params.sourceBranch ?: env.GIT_BRANCH
 def targetRepository = params.targetRepository ?: sourceRepository
 def targetBranch = params.targetBranch ?: 'develop'
 def commitID = params.commitID ?: env.GIT_COMMIT
+
 def is_PR = params.isPR ?: false
 
 def flexricOption = ""
