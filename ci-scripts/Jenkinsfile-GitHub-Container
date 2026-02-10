@@ -150,10 +150,12 @@ pipeline {
           if (gh?.IS_PR) {
              githubNotify(
                credentialsId: 'github-token',
+               account: 'shubhika-garg-oai',
+               repo: 'openairinterface5g',
+               sha: gh.COMMIT_SHA,
                context: 'ci/jenkins',
                status: 'FAILURE',
-               description: message,
-               sha: gh.COMMIT_SHA
+               description: message
              )
            }
           }
@@ -211,14 +213,15 @@ pipeline {
 
       echo message
 
-
       githubNotify(
         credentialsId: 'github-token',
+        account: 'shubhika-garg-oai',
+        repo: 'openairinterface5g',
+        sha: gh.COMMIT_SHA,
         context: 'ci/jenkins',
         status: status,
-        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}",
-        sha: env.pr_commit_sha ?: env.GIT_COMMIT
-      )
+        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}"
+    )
     }
   }
 }
