@@ -197,23 +197,14 @@ pipeline {
       }
 
       // Determine final result
-      def finalStatus
-      if (currentBuild.currentResult == 'SUCCESS') {
-        finalStatus = "SUCCESS"
-      } else if (currentBuild.currentResult == 'FAILURE') {
-        finalStatus = "FAILURE"
-      } else if (currentBuild.currentResult == 'ABORTED') {
-        finalStatus = "ABORTED"
-      } else {
-        finalStatus = currentBuild.currentResult
-      }
+      def status = (currentBuild.currentResult == 'SUCCESS') ? 'SUCCESS' : 'FAILURE'
 
       // Build message to post
       def message = """
 **Jenkins CI result for PR #${gh.PR_NUMBER}**
 - Job: ${JOB_NAME}
 - Build ID: ${BUILD_ID}
-- Status: ${finalStatus}
+- Status: ${status}
 - Failing stages: ${failingStages ?: 'None'}
 - [Jenkins Build Link](${BUILD_URL})
 """
@@ -224,6 +215,13 @@ pipeline {
       githubPrComment(
         credentialsId: 'github-token',
         comment: message
+      )
+      githubNotify(
+        credentialsId: 'github-token',
+        context: 'ci/jenkins',
+        status: status,
+        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}",
+        sha: env.pr_commit_sha ?: env.GIT_COMMIT
       )
     }
   }
