@@ -80,9 +80,12 @@ pipeline {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
-          if (gh.IS_PR) {
-            if (gh.LABELS == null || gh.LABELS.toString() == "[]") {
-              def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
+          withCredentials([string(credentialsId: 'github-token', variable: 'TEMP_TOKEN')]) {
+            echo "Success: 'github-token' is visible to this pipeline."
+          }
+	  if (gh.IS_PR) {
+            if (gh.LABELS.isEmpty()) {
+	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
               message += " - ~documentation (don't perform any stages)\n"
               message += " - ~BUILD-ONLY (execute only build stages)\n"
               message += " - ~4G-LTE (perform 4G tests)\n"
@@ -213,14 +216,15 @@ pipeline {
 
       echo message
 
-
       githubNotify(
         credentialsId: 'github-token',
+        account: 'shubhika-garg-oai',
+        repo: 'openairinterface5g',
+        sha: gh.COMMIT_SHA,
         context: 'ci/jenkins',
         status: status,
-        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}",
-        sha: env.pr_commit_sha ?: env.GIT_COMMIT
-      )
+        description: "Build ${BUILD_ID} ${status} for ${gh.PR_NUMBER}"
+    )
     }
   }
 }
