@@ -80,6 +80,9 @@ pipeline {
       steps {
         echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
         script {
+          withCredentials([string(credentialsId: 'github-token', variable: 'TEMP_TOKEN')]) {
+            echo "Success: 'github-token' is visible to this pipeline."
+          }
 	  if (gh.IS_PR) {
             if (gh.LABELS.isEmpty()) {
 	      def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
