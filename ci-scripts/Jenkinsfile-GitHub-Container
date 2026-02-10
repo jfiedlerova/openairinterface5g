@@ -211,11 +211,7 @@ pipeline {
 
       echo message
 
-      // Post comment to PR using GitHub token
-      githubPrComment(
-        credentialsId: 'github-token',
-        comment: message
-      )
+
       githubNotify(
         credentialsId: 'github-token',
         context: 'ci/jenkins',
