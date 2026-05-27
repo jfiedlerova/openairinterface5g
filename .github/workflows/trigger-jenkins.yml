@@ -1,0 +1,21 @@
+name: Trigger Jenkins
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Save GitHub PR event payload
+        run: |
+          echo '${{ toJson(github.event) }}' > event.json
+
+      - name: Trigger Jenkins
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            --data @event.json \
+            https://jenkins-oai.eurecom.fr/generic-webhook-trigger/invoke?token=RAN-CP-Github-Test
