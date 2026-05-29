@@ -927,7 +927,7 @@ def triggerDownstreamJob (jobName, gitlabStatusName) {
       string(name: 'sourceBranch', value: String.valueOf(gh.SRC_BRANCH)),
       string(name: 'sourceCommit', value: String.valueOf(gh.COMMIT_SHA)),
       string(name: 'requestNumber', value: String.valueOf(gh.PR_NUMBER)),
-      booleanParam(name: 'mergeWithTarget', value: gh.IS_PR),
+      booleanParam(name: 'mergeWithTarget', value: env.GITHUB_PR_NUMBER != null),
       string(name: 'targetBranch', value: String.valueOf(gh.TARGET_BRANCH)),
       string(name: 'testBranch', value: "${gh.SRC_BRANCH}-${gh.COMMIT_SHA}"),
       string(name: 'repository', value: String.valueOf(params.ciRepositoryURL)),
