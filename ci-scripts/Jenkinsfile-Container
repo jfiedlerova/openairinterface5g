@@ -933,7 +933,7 @@ pipeline {
                        credentialsId: 'github-notify-pat',
                        sha: gh.COMMIT_SHA,
                        status: 'FAILURE',
-                       description: fullMessage,
+                       description: 'Build failed',
                        context: 'Jenkins OAI CI'
         }
         echo "Pipeline FAILED"
