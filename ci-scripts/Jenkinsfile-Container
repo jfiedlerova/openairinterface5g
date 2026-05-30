@@ -291,7 +291,7 @@ pipeline {
       }
     }
     stage ("DockerHub-Push") {
-      when { expression {doBuild && "PUSH".equals(env.gitlabActionType)} }
+      when { expression {doBuild && "PUSH".equals(gh.ACTION)} }
       steps {
         script {
           catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
@@ -902,7 +902,6 @@ pipeline {
                        status: 'SUCCESS',
                        description: message,
                        context: 'Jenkins OAI CI'
-          def message2 = message + " -- MergeRequest #" + gh.PR_NUMBER + " (" + env.gitlabMergeRequestTitle + ")"
         }
         echo "Pipeline is SUCCESSFUL"
       }
@@ -912,10 +911,13 @@ pipeline {
         def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): failed (" + BUILD_URL + ")"
         if (gh.IS_PR) {
           def fullMessage = message + '\n\nList of failing test stages:' + failingStages
-          //githubNotify context: 'build',
-          //             status: 'FAILURE',
-          //             description: fullMessage
-          def message2 = message + " -- MergeRequest #" + gh.PR_NUMBER + " (" + env.gitlabMergeRequestTitle + ")"
+          githubNotify account: 'jfiedlerova',
+                       repo: 'openairinterface5g',
+                       credentialsId: 'github-notify-pat',
+                       sha: gh.COMMIT_SHA,
+                       status: 'SUCCESS',
+                       description: message,
+                       context: 'Jenkins OAI CI'
         }
         echo "Pipeline FAILED"
       }
@@ -925,7 +927,7 @@ pipeline {
 
 // ----  Slave Job functions
 
-def triggerDownstreamJob (jobName, gitlabStatusName) {
+def triggerDownstreamJob (jobName, statusName) {
   def PR_NUMBER = gh.IS_PR ? gh.PR_NUMBER : 'develop'
   // Workaround for the "cancelled" GitLab pipeline notification
   // The downstream job is triggered with the propagate false so the following commands are executed
@@ -945,17 +947,18 @@ def triggerDownstreamJob (jobName, gitlabStatusName) {
       string(name: 'branch', value: "${gh.SRC_BRANCH.replace('/', '-')}-${gh.COMMIT_SHA}")
     ], propagate: false
   def localResult = localStatus.getResult()
-  echo "${jobName} Slave Job status is ${localResult}"
-  gitlabCommitStatus(name: gitlabStatusName) {
-    if (localStatus.resultIsBetterOrEqualTo('SUCCESS')) {
-       echo "${jobName} Slave Job is OK"
-    } else {
-       error "${jobName} Slave Job is KO"
-    }
+  echo "${jobName} Downstream Job status is ${localResult}"
+  def passed = localStatus.resultIsBetterOrEqualTo('SUCCESS')
+  publishChecks name: statusName,
+                status: 'COMPLETED',
+                conclusion: passed ? 'SUCCESS' : 'FAILURE',
+                detailsURL: localStatus.absoluteUrl
+  if (!passed) {
+    error "${jobName} Downstream Job is KO"
   }
 }
 
-def triggerCN5GDownstreamJob (jobName, gitlabStatusName) {
+def triggerCN5GDownstreamJob (jobName, statusName) {
   if (gh.IS_PR) {
     fullRanTag = OAI_Registry + '/oai-gnb:' + "${gh.SRC_BRANCH.replace('/', '-')}-${gh.COMMIT_SHA}"
   } else {
@@ -970,14 +973,15 @@ def triggerCN5GDownstreamJob (jobName, gitlabStatusName) {
       string(name: 'FULL_RAN_TAG', value: String.valueOf(fullRanTag))
     ], propagate: false
   def localResult = localStatus.getResult()
-  echo "${jobName} Slave Job status is ${localResult}"
-  //gitlabCommitStatus(name: gitlabStatusName) {
-    if (localStatus.resultIsBetterOrEqualTo('SUCCESS')) {
-       echo "${jobName} Slave Job is OK"
-    } else {
-       error "${jobName} Slave Job is KO"
-    }
-  //}
+  echo "${jobName} Downstream Job status is ${localResult}"
+  def passed = localStatus.resultIsBetterOrEqualTo('SUCCESS')
+  publishChecks name: statusName,
+                status: 'COMPLETED',
+                conclusion: passed ? 'SUCCESS' : 'FAILURE',
+                detailsURL: localStatus.absoluteUrl
+  if (!passed) {
+    error "${jobName} Downstream Job is KO"
+  }
 }
 
 def finalizeDownstreamJob(jobName) {
