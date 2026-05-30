@@ -891,6 +891,19 @@ pipeline {
     }
   }
   post {
+    always {
+      script {
+        if (gh.IS_PR) {
+          def body = "OAI ${JOB_NAME} [build ${BUILD_ID}](${BUILD_URL}): ${currentBuild.currentResult}"
+          if (failingStages) {
+            body += "\n\nFailed stages:\n${failingStages}"
+          }
+          writeFile file: 'pr_comment.md', text: body
+          sh "gh pr comment ${gh.PR_NUMBER} --body-file pr_comment.md"
+          sh "rm -f pr_comment.md"
+        }
+      }
+    }
     success {
       script {
         def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): passed (" + BUILD_URL + ")"
@@ -915,8 +928,8 @@ pipeline {
                        repo: 'openairinterface5g',
                        credentialsId: 'github-notify-pat',
                        sha: gh.COMMIT_SHA,
-                       status: 'SUCCESS',
-                       description: message,
+                       status: 'FAILURE',
+                       description: fullMessage,
                        context: 'Jenkins OAI CI'
         }
         echo "Pipeline FAILED"
