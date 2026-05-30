@@ -45,6 +45,13 @@ pipeline {
   }
 
   stages {
+    stage('Debug ENV') {
+      steps {
+        script {
+          sh 'printenv | sort '
+        }
+      }
+    }
     stage ("Get Parameters") {
       steps {
         script {
