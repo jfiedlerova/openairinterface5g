@@ -899,9 +899,9 @@ pipeline {
             body += "\n\nFailed stages:\n${failingStages}"
           }
           writeFile file: 'pr_comment.md', text: body
-          withCredentials([string(credentialsId: 'github-notify-pat',
-                                  usernameVariable: 'GH_USER',
-                                  passwordVariable: 'GH_TOKEN')]) {
+          withCredentials([usernamePassword(credentialsId: 'github-notify-pat',
+                                            usernameVariable: 'GH_USER',
+                                            passwordVariable: 'GH_TOKEN')]) {
             sh "gh pr comment ${gh.PR_NUMBER} --repo jfiedlerova/openairinterface5g --body-file pr_comment.md"
           }
           sh "rm -f pr_comment.md"
