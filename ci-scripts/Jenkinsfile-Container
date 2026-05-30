@@ -895,9 +895,13 @@ pipeline {
       script {
         def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): passed (" + BUILD_URL + ")"
         if (gh.IS_PR) {
-          //githubNotify context: 'build',
-          //             status: 'SUCCESS',
-          //             description: message
+          githubNotify account: 'jfiedlerova',
+                       repo: 'openairinterface5g',
+                       credentialsId: 'github-notify-pat',
+                       sha: gh.COMMIT_SHA,
+                       status: 'SUCCESS',
+                       description: message,
+                       context: 'Jenkins OAI CI'
           def message2 = message + " -- MergeRequest #" + gh.PR_NUMBER + " (" + env.gitlabMergeRequestTitle + ")"
         }
         echo "Pipeline is SUCCESSFUL"
