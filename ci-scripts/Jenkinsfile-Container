@@ -902,7 +902,7 @@ pipeline {
           //withCredentials([usernamePassword(credentialsId: 'github-notify-pat',
           //                                  usernameVariable: 'GH_USER',
           //                                  passwordVariable: 'GH_TOKEN')]) {
-          sh "gh pr comment ${gh.PR_NUMBER} --repo jfiedlerova/openairinterface5g --body-file pr_comment.md"
+          //sh "gh pr comment ${gh.PR_NUMBER} --repo jfiedlerova/openairinterface5g --body-file pr_comment.md"
           //}
           sh "rm -f pr_comment.md"
         }
