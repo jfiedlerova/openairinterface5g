@@ -1,0 +1,69 @@
+name: Protected CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+
+    outputs:
+      protected_files_changed: ${{ steps.filter.outputs.protected }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            protected:
+              - 'ci-scripts/**'
+
+  approval:
+    needs: detect-changes
+
+    if: needs.detect-changes.outputs.protected_files_changed == 'true'
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ci-approval
+
+    steps:
+      - run: echo "Approved"
+
+  run-ci:
+    needs:
+      - detect-changes
+      - approval
+
+    if: |
+      always() &&
+      (
+        needs.detect-changes.outputs.protected_files_changed == 'false' ||
+        needs.approval.result == 'success'
+      )
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CI
+        run: echo "Running CI"
+
+      - name: Trigger Jenkins
+        run: |
+          echo '${{ toJson(github.event) }}' > event.json
+
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            --data @event.json \
+            https://jenkins-oai.eurecom.fr/generic-webhook-trigger/invoke?token=RAN-CP-Github-Test-Backup
