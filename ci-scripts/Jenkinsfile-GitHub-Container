@@ -11,8 +11,6 @@ def doBuild = true
 def do4Gtest = false
 def do5Gtest = false
 def do5GUeTest = false
-
-//
 def gitCommitAuthorEmailAddr
 
 // list of failing stages
@@ -26,23 +24,45 @@ pipeline {
   }
   options {
     timestamps()
-    gitLabConnection('OAI GitLab')
     ansiColor('xterm')
   }
 
   stages {
-    stage ("Verify Parameters") {
+    stage('Debug ENV') {
       steps {
         script {
+          sh 'printenv | sort '
+        }
+      }
+    }
+    stage ("Get Parameters") {
+      steps {
+        script {
+          echo '\u2705 \u001B[32mGet Parameters\u001B[0m'
+          if (env.GITHUB_PR_NUMBER) {
+            echo "PR number           :   ${env.GITHUB_PR_NUMBER}"
+            echo "Source Repository   :   ${env.GITHUB_PR_URL}"
+            echo "Source Branch       :   ${env.GITHUB_PR_SOURCE_BRANCH}"
+            echo "Commit ID           :   ${env.GITHUB_PR_HEAD_SHA}"
+            echo "Target Repo         :   ${env.GIT_URL}"
+            echo "Target Branch       :   ${env.GITHUB_PR_TARGET_BRANCH}"
+            echo "Label               :   ${env.GITHUB_PR_LABELS}"
+          } else {
+            echo "Branch              :   ${env.GIT_BRANCH}"
+            echo "Commit ID           :   ${env.GIT_COMMIT}"
+          }
+          echo "PR Author             :   ${env.GITHUB_PR_TRIGGER_SENDER_AUTHOR}"
+          echo "PR Author email       :   ${env.GITHUB_PR_AUTHOR_EMAIL}"
           env.JOB_TIMESTAMP = sh(returnStdout: true, script: 'date --utc --rfc-3339=seconds | sed -e "s#+00:00##"').trim()
-          echo '\u2705 \u001B[32mVerify Parameters\u001B[0m'
-          def allParametersPresent = true
-
-          echo '\u2705 \u001B[32mVerify Labels\u001B[0m'
-          if ("MERGE".equals(env.gitlabActionType)) {
-            LABEL_CHECK = sh returnStdout: true, script: 'ci-scripts/checkGitLabMergeRequestLabels.sh --mr-id ' + env.gitlabMergeRequestIid
-            LABEL_CHECK = LABEL_CHECK.trim()
-            if (LABEL_CHECK == 'NONE') {
+        }
+      }
+    }
+    stage ("Verify Labels") {
+      steps {
+        echo '\u2705 \u001B[32mVerify Labels\u001B[0m'
+        script {
+          if (env.GITHUB_PR_NUMBER) {
+            if (env.GITHUB_PR_LABELS == null || env.GITHUB_PR_LABELS.toString() == "[]") {
               def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Your merge request should have one of the mandatory labels:\n\n"
               message += " - ~documentation (don't perform any stages)\n"
               message += " - ~BUILD-ONLY (execute only build stages)\n"
@@ -51,52 +71,58 @@ pipeline {
               message += " - ~CI (perform both 4G and 5G tests)\n"
               message += " - ~nrUE (perform only 5G-UE related tests including physims excluding LDPC tests)\n\n"
               message += "Not performing CI due to lack of labels"
-              addGitLabMRComment comment: message
               error('Not performing CI due to lack of labels')
-            } else if (LABEL_CHECK == 'FULL') {
+            }
+            if (env.GITHUB_PR_LABELS.contains('CI')) {
               do4Gtest = true
               do5Gtest = true
               do5GUeTest = true
-            } else if (LABEL_CHECK == "SHORTEN-4G") {
+            }
+            if (env.GITHUB_PR_LABELS.contains('4G-LTE')) {
               do4Gtest = true
-            } else if (LABEL_CHECK == 'SHORTEN-5G') {
+            }
+            if (env.GITHUB_PR_LABELS.contains('5G-NR')) {
               do5Gtest = true
-            } else if (LABEL_CHECK == 'SHORTEN-5G-UE') {
+            }
+            if (env.GITHUB_PR_LABELS.contains('nrUE')) {
               do5GUeTest = true
-            } else if (LABEL_CHECK == 'SHORTEN-4G-5G-UE') {
-              do4Gtest = true
-              do5GUeTest = true
-            } else if (LABEL_CHECK == 'documentation') {
+            }
+            if (env.GITHUB_PR_LABELS.contains('documentation')) {
               doBuild = false
-            } else {
-              // is "BUILD-ONLY", will only build
             }
           } else {
+            // PUSH event
             do4Gtest = true
             do5Gtest = true
           }
+          echo """
+            CI decision summary:
+            doBuild     = ${doBuild}
+            do4Gtest    = ${do4Gtest}
+            do5Gtest    = ${do5Gtest}
+            do5GUeTest  = ${do5GUeTest}
+          """
         }
       }
     }
     stage ("Verify Guidelines") {
       steps {
-        echo "Git URL     is ${GIT_URL}"
-        echo "GitLab Act    is ${env.gitlabActionType}"
+        echo "Git URL          is ${GIT_URL}"
+        echo "Job Name         is ${JOB_NAME}"
+        echo "Build Id         is ${BUILD_ID}"
+        echo "Git Usermail     is ${env.GITHUB_PR_AUTHOR_EMAIL}"
         script {
-          if ("MERGE".equals(env.gitlabActionType)) {
-            // since a bit, in push events, gitlabUserEmail is not populated
-            gitCommitAuthorEmailAddr = env.gitlabUserEmail
-            echo "GitLab Usermail is ${gitCommitAuthorEmailAddr}"
+          if (env.GITHUB_PR_NUMBER) {
             // Validate MR commits: checks for missing Signed-off-by and merge commits
             def mrValidationLog = "signedCommit_${env.BUILD_NUMBER}.log"
             def mrValidationExitCode = sh(
-                script: "bash ./ci-scripts/pre-ci-check.sh -s origin/${env.gitlabSourceBranch} -t origin/${env.gitlabTargetBranch} > ${mrValidationLog} 2>&1",
+                script: "bash ./ci-scripts/pre-ci-check.sh -s origin/${env.GITHUB_PR_SOURCE_BRANCH} -t origin/${env.GITHUB_PR_TARGET_BRANCH} > ${mrValidationLog} 2>&1",
                 returnStatus: true
             )
             def mrValidationMessage = readFile(mrValidationLog).trim()
             sh "rm -f ${mrValidationLog}"
             if (mrValidationExitCode >= 1) {
-              addGitLabMRComment comment: "${mrValidationMessage}"
+              //addGitLabMRComment comment: "${mrValidationMessage}"
             }
             if (mrValidationExitCode >= 2) {
               error("${mrValidationMessage}")
@@ -107,7 +133,7 @@ pipeline {
             // since a bit, in push events, gitlabUserEmail is not populated
             gitCommitAuthorEmailAddr = sh returnStdout: true, script: 'git log -n1 --pretty=format:%ae ${GIT_COMMIT}'
             gitCommitAuthorEmailAddr = gitCommitAuthorEmailAddr.trim()
-            echo "GitLab Usermail is ${gitCommitAuthorEmailAddr}"
+            echo "Git Usermail  is ${gitCommitAuthorEmailAddr}"
           }
         }
       }
@@ -122,7 +148,9 @@ pipeline {
         failure {
           script {
             def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): Cannot perform CI - merge validation failed (merge conflict, git operation failure, or internal CI error)."
-            addGitLabMRComment comment: message
+            //githubNotify context: 'build',
+            //             status: 'FAILURE',
+            //             description: message
             currentBuild.result = 'FAILURE'
           }
         }
@@ -848,9 +876,11 @@ pipeline {
     success {
       script {
         def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): passed (" + BUILD_URL + ")"
-        if ("MERGE".equals(env.gitlabActionType)) {
-          addGitLabMRComment comment: message
-          def message2 = message + " -- MergeRequest #" + env.gitlabMergeRequestIid + " (" + env.gitlabMergeRequestTitle + ")"
+        if (env.GITHUB_PR_NUMBER) {
+          //githubNotify context: 'build',
+          //             status: 'SUCCESS',
+          //             description: message
+          def message2 = message + " -- MergeRequest #" + env.GITHUB_PR_NUMBER + " (" + env.gitlabMergeRequestTitle + ")"
         }
         echo "Pipeline is SUCCESSFUL"
       }
@@ -858,10 +888,12 @@ pipeline {
     failure {
       script {
         def message = "OAI " + JOB_NAME + " build (" + BUILD_ID + "): failed (" + BUILD_URL + ")"
-        if ("MERGE".equals(env.gitlabActionType)) {
+        if (env.GITHUB_PR_NUMBER) {
           def fullMessage = message + '\n\nList of failing test stages:' + failingStages
-          addGitLabMRComment comment: fullMessage
-          def message2 = message + " -- MergeRequest #" + env.gitlabMergeRequestIid + " (" + env.gitlabMergeRequestTitle + ")"
+          //githubNotify context: 'build',
+          //             status: 'FAILURE',
+          //             description: fullMessage
+          def message2 = message + " -- MergeRequest #" + env.GITHUB_PR_NUMBER + " (" + env.gitlabMergeRequestTitle + ")"
         }
         echo "Pipeline FAILED"
       }
@@ -872,22 +904,22 @@ pipeline {
 // ----  Slave Job functions
 
 def triggerDownstreamJob (jobName, gitlabStatusName) {
-  def MR_NUMBER = "MERGE".equals(env.gitlabActionType) ? env.gitlabMergeRequestIid : 'develop'
+  def PR_NUMBER = env.GITHUB_PR_NUMBER ? env.GITHUB_PR_NUMBER : 'develop'
   // Workaround for the "cancelled" GitLab pipeline notification
   // The downstream job is triggered with the propagate false so the following commands are executed
   // Its status is now PASS/SUCCESS from a stage pipeline point of view
   // localStatus variable MUST be analyzed to properly assess the status
   def localStatus = build job: jobName,
     parameters: [
-      string(name: 'targetRepo', value: String.valueOf(env.gitlabTargetRepoHttpUrl)),
-      string(name: 'sourceRepo', value: String.valueOf(env.gitlabSourceRepoHttpUrl)),
-      string(name: 'sourceBranch', value: String.valueOf(env.gitlabSourceBranch)),
-      string(name: 'sourceCommit', value: String.valueOf(env.gitlabMergeRequestLastCommit)),
-      string(name: 'requestNumber', value: String.valueOf(MR_NUMBER)),
-      booleanParam(name: 'mergeWithTarget', value: "MERGE".equals(env.gitlabActionType)),
-      string(name: 'targetBranch', value: String.valueOf(env.gitlabTargetBranch)),
+      string(name: 'targetRepo', value: String.valueOf(env.GIT_URL)),
+      string(name: 'sourceRepo', value: String.valueOf(env.GITHUB_PR_URL)),
+      string(name: 'sourceBranch', value: String.valueOf(env.GITHUB_PR_SOURCE_BRANCH)),
+      string(name: 'sourceCommit', value: String.valueOf(env.GITHUB_PR_HEAD_SHA)),
+      string(name: 'requestNumber', value: String.valueOf(env.GITHUB_PR_NUMBER)),
+      booleanParam(name: 'mergeWithTarget', value: env.GITHUB_PR_NUMBER),
+      string(name: 'targetBranch', value: String.valueOf(env.GITHUB_PR_TARGET_BRANCH)),
       string(name: 'repository', value: String.valueOf(params.ciRepositoryURL)),
-      string(name: 'branch', value: "${env.gitlabSourceBranch.replace('/', '-')}-${env.gitlabMergeRequestLastCommit}")
+      string(name: 'branch', value: "${env.GITHUB_PR_SOURCE_BRANCH.replace('/', '-')}-${env.GITHUB_PR_HEAD_SHA}")
     ], propagate: false
   def localResult = localStatus.getResult()
   echo "${jobName} Slave Job status is ${localResult}"
@@ -901,8 +933,8 @@ def triggerDownstreamJob (jobName, gitlabStatusName) {
 }
 
 def triggerCN5GDownstreamJob (jobName, gitlabStatusName) {
-  if ("MERGE".equals(env.gitlabActionType)) {
-    fullRanTag = OAI_Registry + '/oai-gnb:' + "${env.gitlabSourceBranch.replace('/', '-')}-${env.gitlabMergeRequestLastCommit}"
+  if (env.GITHUB_PR_NUMBER) {
+    fullRanTag = OAI_Registry + '/oai-gnb:' + "${env.GITHUB_PR_SOURCE_BRANCH.replace('/', '-')}-${env.GITHUB_PR_HEAD_SHA}"
   } else {
     fullRanTag = OAI_Registry + '/oai-gnb:develop-' + env.GIT_COMMIT
   }
@@ -916,13 +948,13 @@ def triggerCN5GDownstreamJob (jobName, gitlabStatusName) {
     ], propagate: false
   def localResult = localStatus.getResult()
   echo "${jobName} Slave Job status is ${localResult}"
-  gitlabCommitStatus(name: gitlabStatusName) {
+  //gitlabCommitStatus(name: gitlabStatusName) {
     if (localStatus.resultIsBetterOrEqualTo('SUCCESS')) {
        echo "${jobName} Slave Job is OK"
     } else {
        error "${jobName} Slave Job is KO"
     }
-  }
+  //}
 }
 
 def finalizeDownstreamJob(jobName) {
