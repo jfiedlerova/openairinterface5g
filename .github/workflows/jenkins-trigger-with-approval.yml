@@ -8,6 +8,10 @@ concurrency:
   group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -25,6 +29,7 @@ jobs:
           filters: |
             protected:
               - 'ci-scripts/**'
+              - '!ci-scripts/conf_files/**'
 
   approval:
     needs: detect-changes
@@ -55,7 +60,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run CI
         run: echo "Running CI"
 
@@ -65,5 +71,6 @@ jobs:
 
           curl -X POST \
             -H "Content-Type: application/json" \
-            --data @event.json \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            --data "@event.json" \
             https://jenkins-oai.eurecom.fr/generic-webhook-trigger/invoke?token=RAN-CP-Github-Test-Backup
