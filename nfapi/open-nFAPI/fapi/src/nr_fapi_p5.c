@@ -571,11 +571,16 @@ static uint8_t unpack_config_tlvs_to_report(void *tlv, uint8_t **ppReadPackedMsg
   }
 
   // after this value, get the tlv list
-  cellParamTable->config_tlvs_to_report_list = calloc(cellParamTable->num_config_tlvs_to_report.value, sizeof(nfapi_uint8_tlv_t *));
+  cellParamTable->config_tlvs_to_report_list =
+      calloc(cellParamTable->num_config_tlvs_to_report.value, sizeof(*cellParamTable->config_tlvs_to_report_list));
 
   for (int i = 0; i < cellParamTable->num_config_tlvs_to_report.value; ++i) {
     pull16(ppReadPackedMsg, &cellParamTable->config_tlvs_to_report_list[i].tl.tag, end);
-    pull8(ppReadPackedMsg, (uint8_t *)&cellParamTable->config_tlvs_to_report_list[i].tl.length, end);
+    // config_tlvs_to_report uses a 1-byte length; read it into a uint8 so the
+    // upper bytes of the 32-bit tl.length field stay zeroed.
+    uint8_t len8 = 0;
+    pull8(ppReadPackedMsg, &len8, end);
+    cellParamTable->config_tlvs_to_report_list[i].tl.length = len8;
     pull8(ppReadPackedMsg, &cellParamTable->config_tlvs_to_report_list[i].value, end);
     // Remove padding that ensures multiple of 4 bytes (SCF 225 Section 2.3.2.1)
     padding = get_tlv_padding(cellParamTable->config_tlvs_to_report_list[i].tl.length);
@@ -795,7 +800,7 @@ uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *e
                         &pack_uint32_tlv_value);
   numTLVs++;
 
-  retval &= push16(NFAPI_NR_CONFIG_DL_K0_TAG, ppWritePackedMsg, end) && push16(5 * sizeof(uint16_t), ppWritePackedMsg, end)
+  retval &= pack_nr_tl_header(NFAPI_NR_CONFIG_DL_K0_TAG, 5 * sizeof(uint16_t), ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_k0[0].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_k0[1].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_k0[2].value, ppWritePackedMsg, end)
@@ -804,7 +809,7 @@ uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *e
             && push16(0, ppWritePackedMsg, end); // Padding
   numTLVs++;
 
-  retval &= push16(NFAPI_NR_CONFIG_DL_GRID_SIZE_TAG, ppWritePackedMsg, end) && push16(5 * sizeof(uint16_t), ppWritePackedMsg, end)
+  retval &= pack_nr_tl_header(NFAPI_NR_CONFIG_DL_GRID_SIZE_TAG, 5 * sizeof(uint16_t), ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_grid_size[0].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_grid_size[1].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.dl_grid_size[2].value, ppWritePackedMsg, end)
@@ -834,7 +839,7 @@ uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *e
                         &pack_uint32_tlv_value);
   numTLVs++;
 
-  retval &= push16(NFAPI_NR_CONFIG_UL_K0_TAG, ppWritePackedMsg, end) && push16(5 * sizeof(uint16_t), ppWritePackedMsg, end)
+  retval &= pack_nr_tl_header(NFAPI_NR_CONFIG_UL_K0_TAG, 5 * sizeof(uint16_t), ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_k0[0].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_k0[1].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_k0[2].value, ppWritePackedMsg, end)
@@ -843,7 +848,7 @@ uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *e
             && push16(0, ppWritePackedMsg, end); // Padding
   numTLVs++;
 
-  retval &= push16(NFAPI_NR_CONFIG_UL_GRID_SIZE_TAG, ppWritePackedMsg, end) && push16(5 * sizeof(uint16_t), ppWritePackedMsg, end)
+  retval &= pack_nr_tl_header(NFAPI_NR_CONFIG_UL_GRID_SIZE_TAG, 5 * sizeof(uint16_t), ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_grid_size[0].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_grid_size[1].value, ppWritePackedMsg, end)
             && push16(pNfapiMsg->carrier_config.ul_grid_size[2].value, ppWritePackedMsg, end)
@@ -1440,7 +1445,7 @@ uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *
   unsigned long idx = 0;
   while ((uint8_t *)(*ppReadPackedMsg) + 4 < end) {
     // unpack the tl and process the values accordingly
-    if (unpack_tl(ppReadPackedMsg, &generic_tl, end) == 0)
+    if (unpack_nr_tl(ppReadPackedMsg, &generic_tl, end) == 0)
       return 0;
     uint8_t tagMatch = 0;
     uint8_t *pStartOfValue = 0;
