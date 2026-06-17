@@ -50,7 +50,7 @@ jobs:
             "BUILD-ONLY" \
             "documentation" \
             "5G-NR" \
-            "nrUE" \
+            "nrUE"; do
             if echo "$PR_LABELS" | grep -qxF "$label"; then
               exit 0
             fi
