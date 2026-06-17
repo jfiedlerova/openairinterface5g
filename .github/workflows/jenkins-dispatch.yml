@@ -17,6 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
+<<<<<<< HEAD
   verify-signed-commits:
     runs-on: ubuntu-24.04
 
