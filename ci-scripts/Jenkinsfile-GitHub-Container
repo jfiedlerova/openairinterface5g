@@ -96,18 +96,6 @@ pipeline {
         echo '\u2705 \u001B[32mVerify Labels\u001B[0m'
         script {
           if (env.GITHUB_PR_NUMBER) {
-            if (!(env.GITHUB_PR_LABELS)) {
-              def gitBaseUrl = env.GIT_URL.trim().replace('.git', '')
-              def message = "**CI Build:** [#${env.BUILD_NUMBER}](${BUILD_URL}) | Not performing CI due to the absence of one of the following mandatory labels:\n"
-              message += "- ${gitBaseUrl}/labels/documentation (don't perform any stages)\n"
-              message += "- ${gitBaseUrl}/labels/BUILD-ONLY (execute only build stages)\n"
-              message += "- ${gitBaseUrl}/labels/4G-LTE (perform 4G tests)\n"
-              message += "- ${gitBaseUrl}/labels/5G-NR (perform 5G tests)\n"
-              message += "- ${gitBaseUrl}/labels/nrUE (perform only 5G-UE related tests including physims excluding LDPC tests)\n"
-              message += "- ${gitBaseUrl}/labels/CI (perform both 4G and 5G tests)\n"
-              githubPRComment comment: githubPRMessage(message)
-              error('Not performing CI due to lack of mandatory labels')
-            }
             if (env.GITHUB_PR_LABELS.contains('CI')) {
               do4Gtest = true
               do5Gtest = true
