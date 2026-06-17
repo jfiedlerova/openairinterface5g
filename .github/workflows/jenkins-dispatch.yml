@@ -32,6 +32,7 @@ jobs:
 
           if [ -n "$UNSIGNED" ]; then
             echo "::error::Unsigned commits found: $UNSIGNED"
+            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "::error::Unsigned commits found: $UNSIGNED"
             exit 1
           fi
 
