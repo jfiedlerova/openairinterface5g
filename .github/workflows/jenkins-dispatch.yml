@@ -3,10 +3,10 @@ name: Duranta Jenkins Dispatch
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, labeled]
-    branches: [develop]
+    branches: [ci-duranta-fixes]
   push:
     branches:
-      - develop
+      - ci-duranta-fixes
 
 concurrency:
   group: ${{ github.event_name }}-${{ github.event.action }}-${{ github.event.pull_request.number || github.ref }}
@@ -47,13 +47,10 @@ jobs:
           PR_LABELS=$(echo '${{ toJson(github.event.pull_request.labels) }}' | jq -r '.[].name')
 
           for label in \
-            "${{ vars.BUILD_ONLY_LABEL }}" \
-            "${{ vars.DOC_LABEL }}" \
-            "${{ vars.NR_LABEL }}" \
-            "${{ vars.NRUE_LABEL }}" \
-            "${{ vars.LTE_LABEL }}" \
-            "${{ vars.CI_LABEL }}" \
-            "${{ vars.RETRIGGER_CI_LABEL }}"; do
+            "BUILD-ONLY" \
+            "documentation" \
+            "5G-NR" \
+            "nrUE" \
             if echo "$PR_LABELS" | grep -qxF "$label"; then
               exit 0
             fi
@@ -103,11 +100,8 @@ jobs:
 
     runs-on: ubuntu-24.04
 
-    environment:
-      name: ci-approval
-
     steps:
-      - run: echo "Maintainer has approved the changes"
+      - run: echo "Changes to be approved"
 
   trigger-jenkins:
     needs:
@@ -144,17 +138,7 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request_target" ]; then
             EVENT_NAME="pull_request"
           fi
-
-          curl -X POST "https://${{ secrets.J_USER }}:${{ secrets.J_PASS }}@${{ secrets.J_URL }}" \
-            -H "Accept: */*" \
-            -H "Content-Type: application/json" \
-            -H "User-Agent: GitHub-Hookshot/${{ secrets.H_AGENT }}" \
-            -H "X-Github-Delivery: ${{ secrets.GITHUB_TOKEN }}" \
-            -H "X-Github-Event: $EVENT_NAME" \
-            -H "X-Github-Hook-Id: ${{ secrets.H_ID }}" \
-            -H "X-Github-Hook-Installation-Target-Id: ${{ secrets.H_TARGET }}" \
-            -H "X-Github-Hook-Installation-Target-Type: repository" \
-            --data @/tmp/filtered_payload.json
+          echo '${{ toJson(github.event) }}'
 
       - name: Remove retrigger-ci label
         if: always() && github.event.action == 'labeled' && github.event.label.name == vars.RETRIGGER_CI_LABEL
