@@ -151,7 +151,11 @@ jobs:
           echo '${{ toJson(github.event) }}'
 
       - name: Remove retrigger-ci label
-        if: always() && github.event.action == 'labeled' && github.event.label.name == vars.RETRIGGER_CI_LABEL
-        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label "${{ vars.RETRIGGER_CI_LABEL }}"
+        if: always() && github.event_name == 'pull_request_target'
+        run: |
+          PR_LABELS=$(echo '${{ toJson(github.event.pull_request.labels) }}' | jq -r '.[].name')
+          if echo "$PR_LABELS" | grep -qxF "${{ vars.RETRIGGER_CI_LABEL }}"; then
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "${{ vars.RETRIGGER_CI_LABEL }}"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
