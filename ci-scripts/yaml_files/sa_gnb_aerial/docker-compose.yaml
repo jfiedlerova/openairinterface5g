@@ -21,12 +21,11 @@ services:
       - /dev/hugepages:/dev/hugepages
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
       - /run/systemd/system:/run/systemd/system
-      - /mnt/cicd_tvs:/mnt/cicd_tvs
       - ./cuphycontroller_P5G_WNC_DGX.yaml:/opt/nvidia/cuBB/cuPHY-CP/cuphycontroller/config/cuphycontroller_P5G_WNC_DGX.yaml
       - /var/log/aerial:/var/log/aerial
     userns_mode: host
     ipc: "shareable"
-    image: cubb-build-dgx:26-1
+    image: nv-cubb-dgx:26-1
     environment:
       - cuBB_SDK=/opt/nvidia/cuBB
     command: bash -c "/opt/nvidia/cuBB/run-l1.sh"
