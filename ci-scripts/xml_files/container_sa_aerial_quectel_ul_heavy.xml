@@ -15,7 +15,6 @@
 
   <testCase>
     <class>Custom_Script</class>
-    <always_exec>true</always_exec>
     <desc>Configure 100 MHz bandwidth and set the DGX3 MAC address on WNC RU</desc>
     <node>gracehopper1-oai</node>
     <script>scripts/set-wnc-params.sh</script>
@@ -121,6 +120,15 @@
     <desc>Clean Test Images on Test Server</desc>
     <node>dgx3-oai</node>
     <images>oai-gnb-aerial</images>
+  </testCase>
+
+  <testCase>
+    <class>Custom_Script</class>
+    <always_exec>true</always_exec>
+    <desc>Configure 100 MHz bandwidth and set GH1 MAC address (default) on WNC RU</desc>
+    <node>gracehopper1-oai</node>
+    <script>scripts/set-wnc-params.sh</script>
+    <args>100 c4:70:bd:57:24:cc</args>
   </testCase>
 
 </testCaseList>
