@@ -37,10 +37,10 @@ cuphydriver_config:
   pdump_client_thread: -1
   use_green_contexts: 0
   use_batched_memcpy: 1 # Experimental feature; requires >= CUDA 12.8
-  mps_sm_pusch: 40 #48 #40
+  mps_sm_pusch: 40
   mps_sm_pucch: 4
   mps_sm_prach: 4
-  mps_sm_ul_order: 12 #20
+  mps_sm_ul_order: 12
   mps_sm_pdsch: 46
   mps_sm_pdcch: 12
   mps_sm_pbch: 4
@@ -121,7 +121,7 @@ cuphydriver_config:
   serialize_pucch_pusch: 0 # 1=Force serialization of PUSCH/PUCCH
                            # Note: for Early Harq (EH) order is PUSCH EH -> PUCCH -> PUSCH non EH
                            #       for non-Early Harq order is PUCCH -> all PUSCH processing
-  aggr_obj_non_avail_th: 5 # Threshold for consecutive non-availability of Aggregated objects(UL/DL) or DL/UL buffers 
+  aggr_obj_non_avail_th: 5 # Threshold for consecutive non-availability of Aggregated objects(UL/DL) or DL/UL buffers
   dl_wait_th_ns:
     - 500000  #H2D copy wait threshold
     - 4000000 #cuPHY DL channel wait threshold
