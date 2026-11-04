@@ -57,10 +57,10 @@ jobs:
         run: |
           echo "Rejecting noreply (e.g. GitHub private) and AI tool emails in Signed-off-by/Co-authored-by"
 
-          # Signed-off-by/Co-authored-by line whose <email> contains noreply/no-reply/no_reply
-          # (e.g. noreply@anthropic.com, 12345678+user@users.noreply.github.com)
+          # Signed-off-by/Co-authored-by line (also indented, without colon or without <>) whose email
+          # contains noreply/no-reply/no_reply (e.g. noreply@anthropic.com, 12345678+user@users.noreply.github.com)
           # or is exactly cursoragent@cursor.com or copilot@github.com. Matched case-insensitively.
-          INVALID_TRAILER_REGEX='^(signed-off-by|co-authored-by):.*<([^>]*no[-_]?reply[^>]*|cursoragent@cursor\.com|copilot@github\.com)>'
+          INVALID_TRAILER_REGEX='^\s*(signed-off-by|co-authored-by):?.*[<\s]([^>\s]*no[-_]?reply[^>\s]*|cursoragent@cursor\.com|copilot@github\.com)(>|$)'
 
           INVALID=$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
             | jq -r --arg re "$INVALID_TRAILER_REGEX" '
